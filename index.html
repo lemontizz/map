@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Toggle ground elevation - 4.9</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+
+    #elevationDiv {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      padding: 12px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.9/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.9/"></script>
+
+  <script>
+
+    require([
+  "esri/Map",
+  "esri/views/MapView",
+    "esri/views/SceneView",
+      "esri/geometry/Point",
+      "esri/geometry/support/webMercatorUtils",
+      "esri/geometry/SpatialReference"
+], function(Map, MapView, SceneView, Point, webMercatorUtils, SpatialReference){
+    var p = webMercatorUtils.geographicToWebMercator(new Point(121.599, 31.22029, 1.5, new SpatialReference({
+                wkid: 4326
+            })));
+
+    console.log('p', p);
+  var map = new Map({
+    basemap: "streets"
+  });
+  var view = new MapView({
+    container: "viewDiv", 
+    map: map,  
+    zoom: 18,  
+    center: [p.longitude, p.latitude]  
+  });
+});
+
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/views/SceneView",
+      "esri/geometry/Point",
+      "esri/geometry/support/webMercatorUtils",
+      "esri/geometry/SpatialReference",
+      "esri/Graphic",
+      "esri/symbols/PictureMarkerSymbol"
+    ], function(Map, MapView, SceneView, Point, webMercatorUtils, SpatialReference, Graphic, PictureMarkerSymbol) {
+
+    var p = webMercatorUtils.geographicToWebMercator(new Point(121.599, 31.22029, 1.5,new SpatialReference({
+                wkid: 4326
+            })));
+
+    console.log('p', p);
+
+      
+      // Create the Map
+      var map = new Map({
+        basemap: "hybrid",
+        ground: "world-elevation",
+        // zoom: 5
+      });
+        map.on('load', function() {
+        console.log('sdfsdfsdf');
+      });
+      // Create the SceneView
+
+      var view = new SceneView({
+        container: "viewDiv",
+        map: map,
+        camera: {
+          position: [p.longitude, p.latitude, 2000],
+          tilt: 50
+        },
+      });
+
+      view.when(function() {
+        document.getElementById("elevationInput").addEventListener("change", updateElevation);
+
+        function updateElevation(ev) {
+          // Turn ground layers visibility on/off
+          map.ground.layers.forEach(function(layer) {
+            layer.visible = ev.target.checked;
+          });
+        }
+      });
+
+        var tr = new PictureMarkerSymbol({
+                    "monitorCating": "土壤",
+                    "dept": 3,
+                    "name": "soil",
+                    "angle": 0,
+                    "xoffset": 0,
+                    "yoffset": 0,
+                    "type": "esriPMS",
+                    "url": "tr.png",
+                    "contentType": "image/png",
+                    "width": 18,
+                    "height": 18
+                });
+
+
+      var data = [{pointNo:'S1',    x: '121.599'    ,y:'31.22029',  z:'1.5',    },
+{pointNo:'S1',  x: '121.599'    ,y:'31.22029',  z:'3',  },
+{pointNo:'S1',  x: '121.599'    ,y:'31.22029',  z:'4.5',    nd:'0.314'},
+{pointNo:'S2',  x: '121.5995'   ,y:'31.22034',  z:'1.5',    },
+{pointNo:'S2',  x: '121.5995'   ,y:'31.22034',  z:'3',  },
+{pointNo:'S2',  x: '121.5995'   ,y:'31.22034',  z:'4.5',    },
+{pointNo:'S3',  x: '121.5998'   ,y:'31.22038',  z:'1.5',    },
+{pointNo:'S3',  x: '121.5998'   ,y:'31.22038',  z:'3',  },
+{pointNo:'S3',  x: '121.5998'   ,y:'31.22038',  z:'4.5',    },
+{pointNo:'S4',  x: '121.6003'   ,y:'31.22054',  z:'1.5',    nd:'0.25'},
+{pointNo:'S4',  x: '121.6003'   ,y:'31.22054',  z:'3',  },
+{pointNo:'S4',  x: '121.6003'   ,y:'31.22054',  z:'4.5',    },
+{pointNo:'S5',  x: '121.6006'   ,y:'31.22062',  z:'1.5',    },
+{pointNo:'S5',  x: '121.6006'   ,y:'31.22062',  z:'3',  },
+{pointNo:'S5',  x: '121.6006'   ,y:'31.22062',  z:'4.5',    },
+{pointNo:'S6',  x: '121.601'    ,y:'31.22062',  z:'1.5',    nd:'0.287'},
+{pointNo:'S6',  x: '121.601'    ,y:'31.22062',  z:'3',  nd:'0.177'},
+{pointNo:'S6',  x: '121.601'    ,y:'31.22062',  z:'4.5',    nd:'0.273'},
+{pointNo:'S7',  x: '121.6015'   ,y:'31.22045',  z:'1.5',    nd:'0.259'},
+{pointNo:'S7',  x: '121.6015'   ,y:'31.22045',  z:'3',  nd:'0.363'},
+{pointNo:'S7',  x: '121.6015'   ,y:'31.22045',  z:'4.5',    },
+{pointNo:'S8',  x: '121.6012'   ,y:'31.22041',  z:'1.5',    },
+{pointNo:'S8',  x: '121.6012'   ,y:'31.22041',  z:'3',  nd:'0.19'},
+{pointNo:'S8',  x: '121.6012'   ,y:'31.22041',  z:'4.5',    },
+{pointNo:'S9',  x: '121.6008'   ,y:'31.22031',  z:'1.5',    nd:'0.242'},
+{pointNo:'S9',  x: '121.6008'   ,y:'31.22031',  z:'3',  },
+{pointNo:'S9',  x: '121.6008'   ,y:'31.22031',  z:'4.5' },
+{pointNo:'S10', x: '121.6004'   ,y:'31.22019',  z:'1.5' },
+{pointNo:'S10', x: '121.6004'   ,y:'31.22019',  z:'3'   },
+{pointNo:'S10', x: '121.6004'   ,y:'31.22019',  z:'4.5' }];
+
+for(var i = 0; i < data.length; i++) {
+    setPoint(data[i]);
+}
+
+
+
+function setPoint(data) {
+    var point = {
+        type: "point", // autocasts as new Point()
+        longitude: Number(data.x),
+        latitude: Number(data.y)
+      };
+
+      console.log(data, point);
+
+    var markerSymbol = {
+        type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+        color: [226, 119, 40],
+        outline: { // autocasts as new SimpleLineSymbol()
+          color: [255, 255, 255],
+          width: 1
+        }
+      };
+
+    var pointGraphic = new Graphic({
+        geometry: point,
+        symbol: markerSymbol
+      });
+
+    view.graphics.addMany([pointGraphic]);
+}
+
+// First create a point geometry (this is the location of the Titanic)
+      var point = {
+        type: "point", // autocasts as new Point()
+        longitude: 121.599,
+        latitude: 31.22029
+      };
+
+      // Create a symbol for drawing the point
+      var markerSymbol = {
+        type: "simple-marker", // autocasts as new SimpleMarkerSymbol()
+        color: [226, 119, 40],
+        outline: { // autocasts as new SimpleLineSymbol()
+          color: [255, 255, 255],
+          width: 2
+        }
+      };
+
+      // Create a graphic and add the geometry and symbol to it
+      var pointGraphic = new Graphic({
+        geometry: point,
+        symbol: markerSymbol
+      });
+
+
+
+      // Add the graphics to the view's graphics layer
+      view.graphics.addMany([pointGraphic]);
+
+
+
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+  <div id="elevationDiv">
+    <label>Elevation:
+      <input id="elevationInput" type="checkbox" checked="yes">
+    </label>
+  </div>
+</body>
+</html>

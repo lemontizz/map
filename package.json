@@ -1,0 +1,7 @@
+{
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-connect": "^5.6.1",
+    "http-proxy-middleware": "^0.19.0"
+  }
+}

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Map</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+        <style>
+            body {
+                font-family: Monospace;
+                background-color: #f0f0f0;
+                margin: 0px;
+                overflow: hidden;
+            }
+
+            .text-label {
+                color: blue;
+                font-family: "Fira Mono", Monaco, "Andale Mono", "Lucida Console", "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+                /*margin: -5px 0 0 15px;*/
+                pointer-events:none;
+            }
+        </style>
+    </head>
+    <body>
+
+        <script src="./scripts/three.js"></script>
+
+        <script src="js/renderers/Projector.js"></script>
+        <script src="js/renderers/CanvasRenderer.js"></script>
+        <script src="js/libs/dat.gui.min.js"></script>
+        <script src="js/controls/OrbitControls.js"></script>
+        <script src="js/ParametricGeometries.js"></script>
+        <script src="js/geometry.js"></script>
+
+        <script>
+
+            var container;
+            var camera, scene, renderer;
+            var plane;
+
+            var mouse, raycaster, isShiftDown = false;
+
+            var cubeGeometry = new THREE.BoxBufferGeometry( 50, 50, 50 );
+            var cubeMaterial = new THREE.MeshLambertMaterial( { color: 0x00ff80, overdraw: 0.5 } );
+
+            var objects = [];
+
+            init();
+            render();
+            buildPosition();
+
+            function init() {
+
+                container = document.createElement( 'div' );
+                document.body.appendChild( container );
+
+
+                camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 10000 );
+                camera.position.set( 1000, 1000, 1300 );      //当前观看角度
+                camera.lookAt( 0, 0, 0 );
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color( 0xf0f0f0 );
+
+                // Grid
+                var gridHelper = new THREE.GridHelper( 1500, 80 );
+                scene.add( gridHelper );
+                //
+                raycaster = new THREE.Raycaster();
+                mouse = new THREE.Vector2();
+
+                var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
+                geometry.rotateX( - Math.PI / 2 );
+
+                plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+                
+                scene.add( plane );
+
+                objects.push( plane );
+
+                // Lights
+
+                // var ambientLight = new THREE.AmbientLight( 0x606060 );
+                // scene.add( ambientLight );
+
+                // var directionalLight = new THREE.DirectionalLight( 0xffffff );
+                // directionalLight.position.x = Math.random() - 0.5;
+                // directionalLight.position.y = Math.random() - 0.5;
+                // directionalLight.position.z = Math.random() - 0.5;
+                // directionalLight.position.normalize();
+                // scene.add( directionalLight );
+
+                // var directionalLight = new THREE.DirectionalLight( 0x808080 );
+                // directionalLight.position.x = Math.random() - 0.5;
+                // directionalLight.position.y = Math.random() - 0.5;
+                // directionalLight.position.z = Math.random() - 0.5;
+                // directionalLight.position.normalize();
+                // scene.add( directionalLight );
+
+                renderer = new THREE.CanvasRenderer();
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( window.innerWidth, window.innerHeight );
+                container.appendChild(renderer.domElement);
+
+                
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor =  0.25;
+                controls.enableZoom = true;
+                controls.enablePan = false;
+                controls.enableKeys = false;
+
+
+                // document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+                // document.addEventListener( 'keydown', onDocumentKeyDown, false );
+                // document.addEventListener( 'keyup', onDocumentKeyUp, false );
+
+                
+
+                window.addEventListener( 'resize', onWindowResize, false );
+
+            }
+
+            function onWindowResize() {
+
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+
+                renderer.setSize( window.innerWidth, window.innerHeight );
+
+                render();
+
+            }
+
+            function onDocumentMouseDown( event ) {
+
+                event.preventDefault();
+
+                mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+                mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+
+                raycaster.setFromCamera( mouse, camera );
+
+                var intersects = raycaster.intersectObjects( objects );
+
+                if ( intersects.length > 0 ) {
+
+                    var intersect = intersects[ 0 ];
+
+                    if ( isShiftDown ) {
+
+                        if ( intersect.object != plane ) {
+
+                            scene.remove( intersect.object );
+
+                            objects.splice( objects.indexOf( intersect.object ), 1 );
+
+                        }
+
+                    } else {
+                        var voxel = new THREE.Mesh( cubeGeometry, cubeMaterial );
+                        voxel.position.copy( intersect.point ).add( intersect.face.normal );
+                        voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                        scene.add( voxel );
+
+                        objects.push( voxel );
+
+                    }
+
+                    renderer.render( scene, camera );
+
+                }
+
+            }
+
+            function onDocumentKeyDown( event ) {
+
+                switch( event.keyCode ) {
+
+                    case 16: isShiftDown = true; break;
+
+                }
+
+            }
+
+            function onDocumentKeyUp( event ) {
+
+                switch( event.keyCode ) {
+
+                    case 16: isShiftDown = false; break;
+
+                }
+            }
+
+            function save() {
+
+                window.open( renderer.domElement.toDataURL('image/png'), 'mywindow' );
+                return false;
+
+            }
+
+            function render() {
+
+
+                renderer.render( scene, camera );
+
+                // buildPosition();
+                
+                // var loader = new THREE.FontLoader();
+
+                // loader.load('/fonts/helvetiker_regular.typeface.json', function(font) {
+            
+                // 　　for(var i = 1; i <= 10; i++){
+
+                //         var material = new THREE.MeshBasicMaterial({
+                //             color: 0xffffff
+                //         });
+
+                // // 　　　　var x = 160/10*i;
+
+                //         var geometry = new THREE.TextGeometry( 'S1', {
+                //             font: font,
+                //             size: 15,
+                //             height: 1,
+                //             curveSegments: 5,
+                //             bevelEnabled: true,
+                //             bevelThickness: 0,
+                //             bevelSize: 0,
+                //             bevelSegments: 0
+                //         } );
+
+                //         var material = new THREE.MeshBasicMaterial({
+                //             color: 0x00ff80
+                //         });
+
+                //         var mesh = new THREE.Mesh(geometry, material);
+                //         mesh.position.set(100, 5, 1)
+                //         scene.add(mesh);
+
+                        
+
+                // // 　　　　var meshtextx = new THREE.Mesh(new THREE.TextGeometry(x, {
+                // // 　　　　　　font: font,
+                // // 　　　　　　size: 3,
+                // // 　　　　　　height: 0.1
+                // // 　　　　}), material);
+
+                // // 　　　　meshtextx.position.set(x,0,170);
+                // //         var geometry = new THREE.CylinderGeometry(0, 10, 30, 4, 1);
+                // //         var mesh = new THREE.Mesh(geometry, meshtextx);
+                // //         scene.add(mesh);
+                // 　　}
+
+                //     renderer.render( scene, camera );
+
+                // });
+
+                return;
+
+                var textlabels = [];
+
+                var geometry = new THREE.CylinderGeometry(0, 10, 30, 4, 1);
+
+                for (var i = 0; i < 20; i++) {
+                    var material = new THREE.MeshBasicMaterial({
+                        color: 0xffffff
+                    });
+
+                    var mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.x = (Math.random() - 0.5) * 1000;
+                    mesh.position.y = (Math.random() - 0.5) * 1000;
+                    mesh.position.z = (Math.random() - 0.5) * 1000;
+                    mesh.updateMatrix();
+                    mesh.matrixAutoUpdate = false;
+                    scene.add(mesh);
+
+                    var text = this._createTextLabel();
+                    text.setHTML("Label "+i);
+                    text.setParent(mesh);
+                    textlabels.push(text);
+                    container.appendChild(text.element);
+                }
+
+                for(var i=0; i < textlabels.length; i++) {
+                    textlabels[i].updatePosition();
+                }
+
+                renderer.render(this.scene, this.camera);
+            }
+
+            function _createTextLabel() {
+                var div = document.createElement('div');
+                    div.className = 'text-label';
+                    div.style.position = 'absolute';
+                    div.style.width = 100;
+                    div.style.height = 100;
+                    div.innerHTML = "hi there!";
+                    div.style.top = -1000;
+                    div.style.left = -1000;
+
+                var _this = this;
+
+                    return {
+                        element: div,
+                        parent: false,
+                        position: new THREE.Vector3(0,0,0),
+                        setHTML: function(html) {
+                            this.element.innerHTML = html;
+                        },
+                        setParent: function(threejsobj) {
+                            this.parent = threejsobj;
+                        },
+                        updatePosition: function() {
+                            if(parent) {
+                                this.position.copy(this.parent.position);
+                            }
+
+                            var coords2d = get2DCoords(this.position, camera);
+                            this.element.style.left = coords2d.x + 'px';
+                            this.element.style.top = coords2d.y + 'px';
+                        }
+                    };
+            }
+
+            function get2DCoords(position, camera) {
+                var vector = position.project(camera);
+                vector.x = (vector.x + 1)/2 * window.innerWidth;
+                vector.y = -(vector.y - 1)/2 * window.innerHeight;
+                return vector;
+            }
+
+            function onResize() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            function lonLatToScreenPosition(params) {
+                var scaleX = ((params.maxLon - params.minLon)*3600) / window.innerHeight;//h
+                var x = (params.data.x - params.minLon)*3600 / scaleX;
+
+                var scaleY = ((params.maxLat - params.minLat)*3600) / window.innerWidth;//h
+                var y = (params.maxLat - params.data.y)*3600 / scaleY;
+
+                return {x, y};
+            }
+
+            function buildPosition() {
+                var data = [{"pointNo": "S1","x": 121.5989917,"y": 31.22028528,"z": 1.5,},{"pointNo": "S1","x": 121.5989917,"y": 31.22028528,"z": 3,},{"pointNo": "S1","x": 121.5989917,"y": 31.22028528,"z": 4.5,"nd": 0.314},{"pointNo": "S2","x": 121.5994861,"y": 31.22034444,"z": 1.5,},{"pointNo": "S2","x": 121.5994861,"y": 31.22034444,"z": 3,},{"pointNo": "S2","x": 121.5994861,"y": 31.22034444,"z": 4.5,},{"pointNo": "S3","x": 121.5997583,"y": 31.22038333,"z": 1.5,},{"pointNo": "S3","x": 121.5997583,"y": 31.22038333,"z": 3,},{"pointNo": "S3","x": 121.5997583,"y": 31.22038333,"z": 4.5,},{"pointNo": "S4","x": 121.6003,"y": 31.22053611,"z": 1.5,"nd": 0.25},{"pointNo": "S4","x": 121.6003,"y": 31.22053611,"z": 3,},{"pointNo": "S4","x": 121.6003,"y": 31.22053611,"z": 4.5,},{"pointNo": "S5","x": 121.6006278,"y": 31.22061667,"z": 1.5,},{"pointNo": "S5","x": 121.6006278,"y": 31.22061667,"z": 3,},{"pointNo": "S5","x": 121.6006278,"y": 31.22061667,"z": 4.5,},{"pointNo": "S6","x": 121.6009583,"y": 31.22061667,"z": 1.5,"nd": 0.287},{"pointNo": "S6","x": 121.6009583,"y": 31.22061667,"z": 3,"nd": 0.177},{"pointNo": "S6","x": 121.6009583,"y": 31.22061667,"z": 4.5,"nd": 0.273},{"pointNo": "S7","x": 121.6015361,"y": 31.22045,"z": 1.5,"nd": 0.259},{"pointNo": "S7","x": 121.6015361,"y": 31.22045,"z": 3,"nd": 0.363},{"pointNo": "S7","x": 121.6015361,"y": 31.22045,"z": 4.5,},{"pointNo": "S8","x": 121.6011917,"y": 31.22040556,"z": 1.5,},{"pointNo": "S8","x": 121.6011917,"y": 31.22040556,"z": 3,"nd": 0.19},{"pointNo": "S8","x": 121.6011917,"y": 31.22040556,"z": 4.5,},{"pointNo": "S9","x": 121.6007722,"y": 31.22030556,"z": 1.5,"nd": 0.242},{"pointNo": "S9","x": 121.6007722,"y": 31.22030556,"z": 3,},{"pointNo": "S9","x": 121.6007722,"y": 31.22030556,"z": 4.5,},{"pointNo": "S10","x": 121.6003583,"y": 31.22019167,"z": 1.5,},{"pointNo": "S10","x": 121.6003583,"y": 31.22019167,"z": 3,},{"pointNo": "S10","x": 121.6003583,"y": 31.22019167,"z": 4.5,},{"pointNo": "S11","x": 121.5999583,"y": 31.22011389,"z": 1.5,},{"pointNo": "S11","x": 121.5999583,"y": 31.22011389,"z": 3,},{"pointNo": "S11","x": 121.5999583,"y": 31.22011389,"z": 4.5,},{"pointNo": "S12","x": 121.5995306,"y": 31.21999722,"z": 1.5,},{"pointNo": "S12","x": 121.5995306,"y": 31.21999722,"z": 3,},{"pointNo": "S12","x": 121.5995306,"y": 31.21999722,"z": 4.5,},{"pointNo": "S13","x": 121.5991222,"y": 31.21991944,"z": 1.5,},{"pointNo": "S13","x": 121.5991222,"y": 31.21991944,"z": 3,},{"pointNo": "S13","x": 121.5991222,"y": 31.21991944,"z": 4.5,},{"pointNo": "S14","x": 121.599125,"y": 31.21959083,"z": 1.5,},{"pointNo": "S14","x": 121.599125,"y": 31.21959083,"z": 3,},{"pointNo": "S14","x": 121.599125,"y": 31.21959083,"z": 4.5,},{"pointNo": "S15","x": 121.5996361,"y": 31.21966111,"z": 1.5,},{"pointNo": "S15","x": 121.5996361,"y": 31.21966111,"z": 3,},{"pointNo": "S15","x": 121.5996361,"y": 31.21966111,"z": 4.5,},{"pointNo": "S16","x": 121.6001139,"y": 31.21973333,"z": 1.5,},{"pointNo": "S16","x": 121.6001139,"y": 31.21973333,"z": 3,},{"pointNo": "S16","x": 121.6001139,"y": 31.21973333,"z": 4.5,},{"pointNo": "S17","x": 121.6004417,"y": 31.21984722,"z": 1.5,"nd": 0.156},{"pointNo": "S17","x": 121.6004417,"y": 31.21984722,"z": 3,},{"pointNo": "S17","x": 121.6004417,"y": 31.21984722,"z": 4.5,},{"pointNo": "S18","x": 121.6007194,"y": 31.21984167,"z": 1.5,},{"pointNo": "S18","x": 121.6007194,"y": 31.21984167,"z": 3,},{"pointNo": "S18","x": 121.6007194,"y": 31.21984167,"z": 4.5,},{"pointNo": "S19","x": 121.6012528,"y": 31.22004167,"z": 1.5,},{"pointNo": "S19","x": 121.6012528,"y": 31.22004167,"z": 3,},{"pointNo": "S19","x": 121.6012528,"y": 31.22004167,"z": 4.5,},{"pointNo": "S20","x": 121.6016194,"y": 31.22009444,"z": 1.5,"nd": 0.107},{"pointNo": "S20","x": 121.6016194,"y": 31.22009444,"z": 3,},{"pointNo": "S20","x": 121.6016194,"y": 31.22009444,"z": 4.5,},{"pointNo": "S21","x": 121.6017278,"y": 31.21978889,"z": 1.5,},{"pointNo": "S21","x": 121.6017278,"y": 31.21978889,"z": 3,},{"pointNo": "S21","x": 121.6017278,"y": 31.21978889,"z": 4.5,},{"pointNo": "S22","x": 121.6014222,"y": 31.21973056,"z": 1.5,},{"pointNo": "S22","x": 121.6014222,"y": 31.21973056,"z": 3,},{"pointNo": "S22","x": 121.6014222,"y": 31.21973056,"z": 4.5,},{"pointNo": "S23","x": 121.6009278,"y": 31.21959444,"z": 1.5,"nd": 0.176},{"pointNo": "S23","x": 121.6009278,"y": 31.21959444,"z": 3,},{"pointNo": "S23","x": 121.6009278,"y": 31.21959444,"z": 4.5,},{"pointNo": "S24","x": 121.60055,"y": 31.21949167,"z": 1.5,},{"pointNo": "S24","x": 121.60055,"y": 31.21949167,"z": 3,},{"pointNo": "S24","x": 121.60055,"y": 31.21949167,"z": 4.5,},{"pointNo": "S25","x": 121.6001306,"y": 31.21940556,"z": 1.5,"nd": 0.583},{"pointNo": "S25","x": 121.6001306,"y": 31.21940556,"z": 3,"nd": 0.131},{"pointNo": "S25","x": 121.6001306,"y": 31.21940556,"z": 4.5,},{"pointNo": "S26","x": 121.5996417,"y": 31.21923694,"z": 1.5,},{"pointNo": "S26","x": 121.5996417,"y": 31.21923694,"z": 3,},{"pointNo": "S26","x": 121.5996417,"y": 31.21923694,"z": 4.5,},{"pointNo": "S27","x": 121.5993583,"y": 31.21924167,"z": 1.5,"nd": 0.225},{"pointNo": "S27","x": 121.5993583,"y": 31.21924167,"z": 3,"nd": 0.113},{"pointNo": "S27","x": 121.5993583,"y": 31.21924167,"z": 4.5,},{"pointNo": "S28","x": 121.5990639,"y": 31.21904306,"z": 1.5,"nd": 0.216},{"pointNo": "S28","x": 121.5990639,"y": 31.21904306,"z": 3,},{"pointNo": "S28","x": 121.5990639,"y": 31.21904306,"z": 4.5,},{"pointNo": "S29","x": 121.5994333,"y": 31.21886944,"z": 1.5,"nd": 0.228},{"pointNo": "S29","x": 121.5994333,"y": 31.21886944,"z": 3,"nd": 0.185},{"pointNo": "S29","x": 121.5994333,"y": 31.21886944,"z": 4.5,},{"pointNo": "S30","x": 121.5997194,"y": 31.21895833,"z": 1.5,},{"pointNo": "S30","x": 121.5997194,"y": 31.21895833,"z": 3,"nd": 0.349},{"pointNo": "S30","x": 121.5997194,"y": 31.21895833,"z": 4.5,"nd": 0.294},{"pointNo": "S31","x": 121.6002194,"y": 31.21904722,"z": 1.5,"nd": 0.165},{"pointNo": "S31","x": 121.6002194,"y": 31.21904722,"z": 3,"nd": 0.214},{"pointNo": "S31","x": 121.6002194,"y": 31.21904722,"z": 4.5,},{"pointNo": "S32","x": 121.6005111,"y": 31.21916389,"z": 1.5,},{"pointNo": "S32","x": 121.6005111,"y": 31.21916389,"z": 3,"nd": 0.124},{"pointNo": "S32","x": 121.6005111,"y": 31.21916389,"z": 4.5,"nd": 0.273},{"pointNo": "S33","x": 121.6009639,"y": 31.219225,"z": 1.5,},{"pointNo": "S33","x": 121.6009639,"y": 31.219225,"z": 3,},{"pointNo": "S33","x": 121.6009639,"y": 31.219225,"z": 4.5,},{"pointNo": "S34","x": 121.6010278,"y": 31.2187975,"z": 1.5,"nd": 0.342},{"pointNo": "S34","x": 121.6010278,"y": 31.2187975,"z": 3,"nd": 0.112},{"pointNo": "S34","x": 121.6010278,"y": 31.2187975,"z": 4.5,},{"pointNo": "S35","x": 121.6006972,"y": 31.218775,"z": 1.5,},{"pointNo": "S35","x": 121.6006972,"y": 31.218775,"z": 3,"nd": 1.17},{"pointNo": "S35","x": 121.6006972,"y": 31.218775,"z": 4.5,},{"pointNo": "S36","x": 121.6002861,"y": 31.21859139,"z": 1.5,"nd": 0.176},{"pointNo": "S36","x": 121.6002861,"y": 31.21859139,"z": 3,},{"pointNo": "S36","x": 121.6002861,"y": 31.21859139,"z": 4.5,},{"pointNo": "S37","x": 121.5999028,"y": 31.21859722,"z": 1.5,},{"pointNo": "S37","x": 121.5999028,"y": 31.21859722,"z": 3,"nd": 0.107},{"pointNo": "S37","x": 121.5999028,"y": 31.21859722,"z": 4.5,},{"pointNo": "S38","x": 121.5993972,"y": 31.21861278,"z": 1.5,},{"pointNo": "S38","x": 121.5993972,"y": 31.21861278,"z": 3,},{"pointNo": "S38","x": 121.5993972,"y": 31.21861278,"z": 4.5,},{"pointNo": "S39","x": 121.5995639,"y": 31.21816944,"z": 1.5,},{"pointNo": "S39","x": 121.5995639,"y": 31.21816944,"z": 3,},{"pointNo": "S39","x": 121.5995639,"y": 31.21816944,"z": 4.5,},{"pointNo": "S40","x": 121.6000917,"y": 31.21829722,"z": 1.5,},{"pointNo": "S40","x": 121.6000917,"y": 31.21829722,"z": 3,},{"pointNo": "S40","x": 121.6000917,"y": 31.21829722,"z": 4.5,},{"pointNo": "S41","x": 121.6003806,"y": 31.21833056,"z": 1.5,"nd": 0.178},{"pointNo": "S41","x": 121.6003806,"y": 31.21833056,"z": 3,},{"pointNo": "S41","x": 121.6003806,"y": 31.21833056,"z": 4.5,},{"pointNo": "S42","x": 121.6007333,"y": 31.21836722,"z": 1.5,"nd": 0.245},{"pointNo": "S42","x": 121.6007333,"y": 31.21836722,"z": 3,},{"pointNo": "S42","x": 121.6007333,"y": 31.21836722,"z": 4.5,},{"pointNo": "S43","x": 121.6011694,"y": 31.21852222,"z": 1.5,},{"pointNo": "S43","x": 121.6011694,"y": 31.21852222,"z": 3,"nd": 0.246},{"pointNo": "S43","x": 121.6011694,"y": 31.21852222,"z": 4.5,},{"pointNo": "S44","x": 121.6013167,"y": 31.218145,"z": 1.5,"nd": 0.332},{"pointNo": "S44","x": 121.6013167,"y": 31.218145,"z": 3,"nd": 0.183},{"pointNo": "S44","x": 121.6013167,"y": 31.218145,"z": 4.5,},{"pointNo": "S45","x": 121.6008611,"y": 31.21806944,"z": 1.5,"nd": 0.385},{"pointNo": "S45","x": 121.6008611,"y": 31.21806944,"z": 3,},{"pointNo": "S45","x": 121.6008611,"y": 31.21806944,"z": 4.5,},{"pointNo": "S46","x": 121.6004944,"y": 31.21798056,"z": 1.5,"nd": 0.34},{"pointNo": "S46","x": 121.6004944,"y": 31.21798056,"z": 3,"nd": 0.273},{"pointNo": "S46","x": 121.6004944,"y": 31.21798056,"z": 4.5,"nd": 0.207},{"pointNo": "S47","x": 121.600075,"y": 31.21788889,"z": 1.5,"nd": 0.295},{"pointNo": "S47","x": 121.600075,"y": 31.21788889,"z": 3,"nd": 0.244},{"pointNo": "S47","x": 121.600075,"y": 31.21788889,"z": 4.5,},{"pointNo": "S48","x": 121.5997333,"y": 31.21779722,"z": 1.5,},{"pointNo": "S48","x": 121.5997333,"y": 31.21779722,"z": 3,"nd": 0.277},{"pointNo": "S48","x": 121.5997333,"y": 31.21779722,"z": 4.5,"nd": 0.282},{"pointNo": "S49","x": 121.599425,"y": 31.21773611,"z": 1.5,},{"pointNo": "S49","x": 121.599425,"y": 31.21773611,"z": 3,"nd": 0.289},{"pointNo": "S49","x": 121.599425,"y": 31.21773611,"z": 4.5,},{"pointNo": "S50","x": 121.5995222,"y": 31.21728861,"z": 1.5,"nd": 0.224},{"pointNo": "S50","x": 121.5995222,"y": 31.21728861,"z": 3,},{"pointNo": "S50","x": 121.5995222,"y": 31.21728861,"z": 4.5,"nd": 0.231},{"pointNo": "S51","x": 121.5997667,"y": 31.21744722,"z": 1.5,"nd": 0.179},{"pointNo": "S51","x": 121.5997667,"y": 31.21744722,"z": 3,"nd": 0.293},{"pointNo": "S51","x": 121.5997667,"y": 31.21744722,"z": 4.5,},{"pointNo": "S52","x": 121.6001722,"y": 31.21752333,"z": 1.5,"nd": 0.193},{"pointNo": "S52","x": 121.6001722,"y": 31.21752333,"z": 3,"nd": 0.286},{"pointNo": "S52","x": 121.6001722,"y": 31.21752333,"z": 4.5,},{"pointNo": "S53","x": 121.6005611,"y": 31.21762222,"z": 1.5,},{"pointNo": "S53","x": 121.6005611,"y": 31.21762222,"z": 3,},{"pointNo": "S53","x": 121.6005611,"y": 31.21762222,"z": 4.5,},{"pointNo": "S54","x": 121.600925,"y": 31.21768333,"z": 1.5,"nd": 0.285},{"pointNo": "S54","x": 121.600925,"y": 31.21768333,"z": 3,"nd": 0.299},{"pointNo": "S54","x": 121.600925,"y": 31.21768333,"z": 4.5,},{"pointNo": "S55","x": 121.6013861,"y": 31.21780833,"z": 1.5,"nd": 0.786},{"pointNo": "S55","x": 121.6013861,"y": 31.21780833,"z": 3,},{"pointNo": "S55","x": 121.6013861,"y": 31.21780833,"z": 4.5,},{"pointNo": "S56","x": 121.6014833,"y": 31.21747389,"z": 1.5,"nd": 0.453},{"pointNo": "S56","x": 121.6014833,"y": 31.21747389,"z": 3,"nd": 0.206},{"pointNo": "S56","x": 121.6014833,"y": 31.21747389,"z": 4.5,},{"pointNo": "S57","x": 121.6010333,"y": 31.21735556,"z": 1.5,},{"pointNo": "S57","x": 121.6010333,"y": 31.21735556,"z": 3,"nd": 0.205},{"pointNo": "S57","x": 121.6010333,"y": 31.21735556,"z": 4.5,},{"pointNo": "S58","x": 121.60065,"y": 31.21726389,"z": 1.5,"nd": 0.306},{"pointNo": "S58","x": 121.60065,"y": 31.21726389,"z": 3,"nd": 0.229},{"pointNo": "S58","x": 121.60065,"y": 31.21726389,"z": 4.5,},{"pointNo": "S59","x": 121.60025,"y": 31.21717778,"z": 1.5,"nd": 0.324},{"pointNo": "S59","x": 121.60025,"y": 31.21717778,"z": 3,},{"pointNo": "S59","x": 121.60025,"y": 31.21717778,"z": 4.5,},{"pointNo": "S60","x": 121.5998972,"y": 31.21710722,"z": 1.5,"nd": 0.253},{"pointNo": "S60","x": 121.5998972,"y": 31.21710722,"z": 3,"nd": 0.295},{"pointNo": "S60","x": 121.5998972,"y": 31.21710722,"z": 4.5,},{"pointNo": "S61","x": 121.599525,"y": 31.21699722,"z": 1.5,"nd": 0.391},{"pointNo": "S61","x": 121.599525,"y": 31.21699722,"z": 3,"nd": 0.384},{"pointNo": "S61","x": 121.599525,"y": 31.21699722,"z": 4.5,},{"pointNo": "S62","x": 121.5995417,"y": 31.21672833,"z": 1.5,"nd": 0.297},{"pointNo": "S62","x": 121.5995417,"y": 31.21672833,"z": 3,},{"pointNo": "S62","x": 121.5995417,"y": 31.21672833,"z": 4.5,},{"pointNo": "S63","x": 121.5999444,"y": 31.21670556,"z": 1.5,},{"pointNo": "S63","x": 121.5999444,"y": 31.21670556,"z": 3,},{"pointNo": "S63","x": 121.5999444,"y": 31.21670556,"z": 4.5,},{"pointNo": "S64","x": 121.6004056,"y": 31.21680667,"z": 1.5,"nd": 0.327},{"pointNo": "S64","x": 121.6004056,"y": 31.21680667,"z": 3,},{"pointNo": "S64","x": 121.6004056,"y": 31.21680667,"z": 4.5,},{"pointNo": "S65","x": 121.6007278,"y": 31.21689722,"z": 1.5,},{"pointNo": "S65","x": 121.6007278,"y": 31.21689722,"z": 3,},{"pointNo": "S65","x": 121.6007278,"y": 31.21689722,"z": 4.5,},{"pointNo": "S66","x": 121.6011472,"y": 31.21697861,"z": 1.5,"nd": 0.208},{"pointNo": "S66","x": 121.6011472,"y": 31.21697861,"z": 3,"nd": 0.148},{"pointNo": "S66","x": 121.6011472,"y": 31.21697861,"z": 4.5,"nd": 0.34},{"pointNo": "S67","x": 121.6015222,"y": 31.21706944,"z": 1.5,"nd": 0.251},{"pointNo": "S67","x": 121.6015222,"y": 31.21706944,"z": 3,},{"pointNo": "S67","x": 121.6015222,"y": 31.21706944,"z": 4.5,},{"pointNo": "S68","x": 121.6018389,"y": 31.21691111,"z": 1.5,"nd": 0.202},{"pointNo": "S68","x": 121.6018389,"y": 31.21691111,"z": 3,"nd": 0.796},{"pointNo": "S68","x": 121.6018389,"y": 31.21691111,"z": 4.5,"nd": 0.243},{"pointNo": "S69","x": 121.6016083,"y": 31.21671389,"z": 1.5,"nd": 0.2},{"pointNo": "S69","x": 121.6016083,"y": 31.21671389,"z": 3,},{"pointNo": "S69","x": 121.6016083,"y": 31.21671389,"z": 4.5,},{"pointNo": "S70","x": 121.6012611,"y": 31.21669222,"z": 1.5,"nd": 0.523},{"pointNo": "S70","x": 121.6012611,"y": 31.21669222,"z": 3,},{"pointNo": "S70","x": 121.6012611,"y": 31.21669222,"z": 4.5,},{"pointNo": "S71","x": 121.6008222,"y": 31.21653889,"z": 1.5,},{"pointNo": "S71","x": 121.6008222,"y": 31.21653889,"z": 3,},{"pointNo": "S71","x": 121.6008222,"y": 31.21653889,"z": 4.5,},{"pointNo": "S72","x": 121.6004417,"y": 31.21644722,"z": 1.5,},{"pointNo": "S72","x": 121.6004417,"y": 31.21644722,"z": 3,},{"pointNo": "S72","x": 121.6004417,"y": 31.21644722,"z": 4.5,},{"pointNo": "S73","x": 121.6000361,"y": 31.21636389,"z": 1.5,},{"pointNo": "S73","x": 121.6000361,"y": 31.21636389,"z": 3,"nd": 1.54},{"pointNo": "S73","x": 121.6000361,"y": 31.21636389,"z": 4.5,},{"pointNo": "S74","x": 121.5995667,"y": 31.21632861,"z": 1.5,},{"pointNo": "S74","x": 121.5995667,"y": 31.21632861,"z": 3,},{"pointNo": "S74","x": 121.5995667,"y": 31.21632861,"z": 4.5,},{"pointNo": "S75","x": 121.5996889,"y": 31.21591667,"z": 1.5,},{"pointNo": "S75","x": 121.5996889,"y": 31.21591667,"z": 3,},{"pointNo": "S75","x": 121.5996889,"y": 31.21591667,"z": 4.5,},{"pointNo": "S76","x": 121.6001583,"y": 31.21600333,"z": 1.5,},{"pointNo": "S76","x": 121.6001583,"y": 31.21600333,"z": 3,},{"pointNo": "S76","x": 121.6001583,"y": 31.21600333,"z": 4.5,},{"pointNo": "S77","x": 121.6005306,"y": 31.21611111,"z": 1.5,"nd": 0.235},{"pointNo": "S77","x": 121.6005306,"y": 31.21611111,"z": 3,"nd": 0.196},{"pointNo": "S77","x": 121.6005306,"y": 31.21611111,"z": 4.5,},{"pointNo": "S78","x": 121.6008833,"y": 31.21616667,"z": 1.5,"nd": 0.874},{"pointNo": "S78","x": 121.6008833,"y": 31.21616667,"z": 3,"nd": 0.264},{"pointNo": "S78","x": 121.6008833,"y": 31.21616667,"z": 4.5,"nd": 0.116},{"pointNo": "S79","x": 121.6013056,"y": 31.21628056,"z": 1.5,},{"pointNo": "S79","x": 121.6013056,"y": 31.21628056,"z": 3,"nd": 0.48},{"pointNo": "S79","x": 121.6013056,"y": 31.21628056,"z": 4.5,},{"pointNo": "S80","x": 121.6017111,"y": 31.21638889,"z": 1.5,},{"pointNo": "S80","x": 121.6017111,"y": 31.21638889,"z": 3,},{"pointNo": "S80","x": 121.6017111,"y": 31.21638889,"z": 4.5,},{"pointNo": "S81","x": 121.6020167,"y": 31.21643611,"z": 1.5,},{"pointNo": "S81","x": 121.6020167,"y": 31.21643611,"z": 3,},{"pointNo": "S81","x": 121.6020167,"y": 31.21643611,"z": 4.5,},{"pointNo": "S82","x": 121.6021056,"y": 31.21609167,"z": 1.5,},{"pointNo": "S82","x": 121.6021056,"y": 31.21609167,"z": 3,},{"pointNo": "S82","x": 121.6021056,"y": 31.21609167,"z": 4.5,},{"pointNo": "S83","x": 121.6017806,"y": 31.21598056,"z": 1.5,},{"pointNo": "S83","x": 121.6017806,"y": 31.21598056,"z": 3,},{"pointNo": "S83","x": 121.6017806,"y": 31.21598056,"z": 4.5,},{"pointNo": "S84","x": 121.6014222,"y": 31.21590833,"z": 1.5,},{"pointNo": "S84","x": 121.6014222,"y": 31.21590833,"z": 3,"nd": 0.141},{"pointNo": "S84","x": 121.6014222,"y": 31.21590833,"z": 4.5,},{"pointNo": "S85","x": 121.6010111,"y": 31.21581389,"z": 1.5,"nd": 2.83},{"pointNo": "S85","x": 121.6010111,"y": 31.21581389,"z": 3,"nd": 0.595},{"pointNo": "S85","x": 121.6010111,"y": 31.21581389,"z": 4.5,},{"pointNo": "S86","x": 121.6006389,"y": 31.21571389,"z": 1.5,"nd": 1.04},{"pointNo": "S86","x": 121.6006389,"y": 31.21571389,"z": 3,"nd": 0.21},{"pointNo": "S86","x": 121.6006389,"y": 31.21571389,"z": 4.5,},{"pointNo": "S87","x": 121.6002222,"y": 31.21563056,"z": 1.5,"nd": 0.37},{"pointNo": "S87","x": 121.6002222,"y": 31.21563056,"z": 3,},{"pointNo": "S87","x": 121.6002222,"y": 31.21563056,"z": 4.5,},{"pointNo": "S88","x": 121.599775,"y": 31.21556389,"z": 1.5,"nd": 0.267},{"pointNo": "S88","x": 121.599775,"y": 31.21556389,"z": 3,"nd": 0.251},{"pointNo": "S88","x": 121.599775,"y": 31.21556389,"z": 4.5,"nd": 0.187},{"pointNo": "S89","x": 121.6003278,"y": 31.21525833,"z": 1.5,"nd": 0.441},{"pointNo": "S89","x": 121.6003278,"y": 31.21525833,"z": 3,"nd": 0.272},{"pointNo": "S89","x": 121.6003278,"y": 31.21525833,"z": 4.5,},{"pointNo": "S90","x": 121.6006917,"y": 31.21533361,"z": 1.5,"nd": 0.363},{"pointNo": "S90","x": 121.6006917,"y": 31.21533361,"z": 3,},{"pointNo": "S90","x": 121.6006917,"y": 31.21533361,"z": 4.5,},{"pointNo": "S91","x": 121.6011139,"y": 31.21541667,"z": 1.5,"nd": 0.26},{"pointNo": "S91","x": 121.6011139,"y": 31.21541667,"z": 3,},{"pointNo": "S91","x": 121.6011139,"y": 31.21541667,"z": 4.5,},{"pointNo": "S92","x": 121.6014722,"y": 31.21548056,"z": 1.5,},{"pointNo": "S92","x": 121.6014722,"y": 31.21548056,"z": 3,},{"pointNo": "S92","x": 121.6014722,"y": 31.21548056,"z": 4.5,"nd": 0.162},{"pointNo": "S93","x": 121.6018667,"y": 31.21557778,"z": 1.5,},{"pointNo": "S93","x": 121.6018667,"y": 31.21557778,"z": 3,},{"pointNo": "S93","x": 121.6018667,"y": 31.21557778,"z": 4.5,},{"pointNo": "S94","x": 121.6021806,"y": 31.21575,"z": 1.5,},{"pointNo": "S94","x": 121.6021806,"y": 31.21575,"z": 3,},{"pointNo": "S94","x": 121.6021806,"y": 31.21575,"z": 4.5,},{"pointNo": "S95","x": 121.6022528,"y": 31.2153,"z": 1.5,"nd": 0.396},{"pointNo": "S95","x": 121.6022528,"y": 31.2153,"z": 3,},{"pointNo": "S95","x": 121.6022528,"y": 31.2153,"z": 4.5,},{"pointNo": "S96","x": 121.6019417,"y": 31.21522222,"z": 1.5,"nd": 0.182},{"pointNo": "S96","x": 121.6019417,"y": 31.21522222,"z": 3,"nd": 0.511},{"pointNo": "S96","x": 121.6019417,"y": 31.21522222,"z": 4.5,"nd": 0.347},{"pointNo": "S97","x": 121.6015639,"y": 31.21513056,"z": 1.5,"nd": 1.05},{"pointNo": "S97","x": 121.6015639,"y": 31.21513056,"z": 3,},{"pointNo": "S97","x": 121.6015639,"y": 31.21513056,"z": 4.5,},{"pointNo": "S98","x": 121.6011889,"y": 31.21507583,"z": 1.5,"nd": 0.235},{"pointNo": "S98","x": 121.6011889,"y": 31.21507583,"z": 3,"nd": 0.202},{"pointNo": "S98","x": 121.6011889,"y": 31.21507583,"z": 4.5,},{"pointNo": "S99","x": 121.6008167,"y": 31.21495556,"z": 1.5,"nd": 1.85},{"pointNo": "S99","x": 121.6008167,"y": 31.21495556,"z": 3,},{"pointNo": "S99","x": 121.6008167,"y": 31.21495556,"z": 4.5,},{"pointNo": "S100","x": 121.6005056,"y": 31.21485778,"z": 1.5,"nd": 1.99},{"pointNo": "S100","x": 121.6005056,"y": 31.21485778,"z": 3,"nd": 0.337},{"pointNo": "S100","x": 121.6005056,"y": 31.21485778,"z": 4.5,}],
+                    xList = data.map((i) => i.x),
+                    yList = data.map((i) => i.y),
+                    xFinalData = xList.sort(),
+                    yFinalData = yList.sort(),
+                    minLon = xFinalData[0],
+                    maxLon = xFinalData[xFinalData.length  - 1],
+                    minLat = yFinalData[0],
+                    maxLat = yFinalData[yFinalData.length  - 1];
+                
+
+                var loader = new THREE.FontLoader();
+
+                loader.load('/fonts/helvetiker_regular.typeface.json', function(font) {
+                    for(var i = 0; i < data.length; i++) {
+                        var position = lonLatToScreenPosition({
+                            maxLon: maxLon, 
+                            minLon: minLon,
+                            maxLat: maxLat,
+                            minLat: minLat,
+                            data: data[i]
+                        });
+
+                        var geometry = new THREE.TextGeometry( data[i].pointNo, {
+                            font: font,
+                            size: 12,
+                            height: 1,
+                            curveSegments: 2,
+                            bevelEnabled: true,
+                            bevelThickness: 0,
+                            bevelSize: 0,
+                            bevelSegments: 0
+                        } );
+
+                        var material = new THREE.MeshBasicMaterial({
+                            color: 0x000000
+                        });
+
+                        var mesh = new THREE.Mesh(geometry, material);
+                        // mesh.position.set(-500, 20, -500)
+                        mesh.position.set((position.x - 500) / 2, data[i].z * 20, (position.y - 1000) / 2);
+
+                        // console.log(position);
+                        scene.add(mesh);
+
+                    }
+                    renderer.render( scene, camera );
+                });
+            }
+
+            // buildPosition();
+
+            // window.addEventListener('resize', function() {
+            //     // onResize();
+            // }, false);
+
+            var fov = 40;
+            var near = 1;//最小范围
+            var far = 1000;//最大范围
+
+            document.addEventListener('mousewheel', function() {
+                console.log('xcdsfwerwerwerwerewr');;
+                // e.preventDefault();
+                //e.stopPropagation();
+                if (e.wheelDelta) {  //判断浏览器IE，谷歌滑轮事件
+                    if (e.wheelDelta > 0) { //当滑轮向上滚动时
+                        fov -= (near < fov ? 1 : 0);
+                    }
+                    if (e.wheelDelta < 0) { //当滑轮向下滚动时
+                        fov += (fov < far ? 1 : 0);
+                    }
+                } else if (e.detail) {  //Firefox滑轮事件
+                    if (e.detail > 0) { //当滑轮向上滚动时
+                        fov -= 1;
+                    }
+                    if (e.detail < 0) { //当滑轮向下滚动时
+                        fov += 1;
+                    }
+                }
+                camera.fov = fov;
+                camera.updateProjectionMatrix();
+                renderer.render(scene, camera);
+
+            }, false)
+
+        </script>
+
+    </body>
+</html>
